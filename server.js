@@ -9,8 +9,24 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000', // for local development
+  'https://dash-board-frontend.vercel.app' // your deployed frontend
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like Postman or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS policy does not allow this origin'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true // if you want to allow cookies / auth headers
+}));
+
 app.use(express.json({ limit: '10kb' }));
 
 // Routes
