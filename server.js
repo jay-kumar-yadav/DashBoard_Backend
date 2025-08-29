@@ -1,53 +1,74 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const connectDB = require('./config/database');
 const path = require('path');
+require('dotenv').config();
 
-dotenv.config();
-connectDB();
+const authRoutes = require('./routes/auth');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
-// ✅ Allowed origins: localhost + your Vercel frontend
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://dash-board-frontend-six.vercel.app'
-];
-
+// Middleware
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: ['https://dash-board-frontend-six.vercel.app', 'http://localhost:5173'],
   credentials: true
 }));
-
-// Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Backend is healthy 🚀' });
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+// Serve static files in production
+// if (process.env.NODE_ENV === 'production') {
+//   app.use(express.static(path.join(__dirname, '../client/dist')));
+  
+//   app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+//   });
+// }
 
-// (Optional) Serve frontend build if you deploy React inside backend
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'client/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
+// Handle undefined routes
+app.all('*', (req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: `Can't find ${req.originalUrl} on this server!`
   });
-}
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    status: 'error',
+    message: 'Something went wrong!'
+  });
+});
+
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('MongoDB connected successfully'))
+.catch(err => {
+  console.error('MongoDB connection error:', err);
+  process.exit(1);
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
