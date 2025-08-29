@@ -3,69 +3,49 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
-const authRoutes = require('./routes/auth');
-const dashboardRoutes = require('./routes/dashboard');
-const errorHandler = require('./middleware/errorHandler');
-
 const app = express();
 
-// ✅ Allowed origins (Vercel + Localhost)
-const allowedOrigins = [
-  'https://dash-board-frontend-six.vercel.app', // deployed frontend
-  'http://localhost:3000' // local dev
-];
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// ✅ CORS configuration
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman/curl
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'), false);
-    }
-  },
-  credentials: true,
-}));
+// Import routes
+const authRoutes = require('./routes/auth');
 
-app.use(express.json({ limit: '10kb' }));
+// Use routes
+app.use('/api/auth', authRoutes);
 
-// ✅ Connect to MongoDB first
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ MongoDB connected');
+// Basic routes for testing
+app.get('/', (req, res) => {
+  res.json({ message: 'MERN Dashboard API' });
+});
 
-  // Routes
-  app.use('/api/auth', authRoutes);
-  app.use('/api/dashboard', dashboardRoutes);
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is healthy' });
+});
 
-  // ✅ Root route for testing
-  app.get('/', (req, res) => {
-    res.status(200).json({
-      status: 'success',
-      message: 'Welcome to the Dashboard API 🚀'
+// Test if auth routes are working
+app.get('/api/test-auth', (req, res) => {
+  res.json({ message: 'Auth routes are connected' });
+});
+
+// MongoDB connection
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
-  });
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+};
 
-  // Global error handler
-  app.use(errorHandler);
+connectDB();
 
-  // Handle undefined routes
-  app.all('*', (req, res) => {
-    res.status(404).json({
-      status: 'error',
-      message: `Can't find ${req.originalUrl} on this server!`
-    });
-  });
-
-  // Start server only after DB is ready
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-})
-.catch(err => {
-  console.error('❌ MongoDB connection error:', err);
-  process.exit(1); // exit if DB can’t connect
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
