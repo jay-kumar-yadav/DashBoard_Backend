@@ -9,22 +9,22 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// CORS configuration
+// ✅ Allowed origins
 const allowedOrigins = [
-  'http://localhost:3000', // for local development
-  'https://dash-board-frontend.vercel.app' // your deployed frontend
+  'https://dash-board-frontend-six.vercel.app',  // deployed frontend
+  'http://localhost:3000' // for local development
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like Postman or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS policy does not allow this origin'), false);
+    if (!origin) return callback(null, true); // allow Postman/curl
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
     }
-    return callback(null, true);
   },
-  credentials: true // if you want to allow cookies / auth headers
+  credentials: true, // allow cookies/authorization headers
 }));
 
 app.use(express.json({ limit: '10kb' }));
